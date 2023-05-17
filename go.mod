@@ -1,4 +1,4 @@
-module github.com/dihedron/cq-source-localfile
+module github.com/dihedron/cq-source-file
 
 go 1.20
 

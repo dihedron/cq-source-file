@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/cloudquery/plugin-sdk/serve"
-	"github.com/dihedron/cq-source-localfile/plugin"
+	"github.com/dihedron/cq-source-file/plugin"
 )
 
 func main() {

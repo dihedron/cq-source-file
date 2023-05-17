@@ -2,8 +2,8 @@ package plugin
 
 import (
 	"github.com/cloudquery/plugin-sdk/plugins/source"
-	"github.com/dihedron/cq-source-localfile/client"
-	"github.com/dihedron/cq-source-localfile/resources"
+	"github.com/dihedron/cq-source-file/client"
+	"github.com/dihedron/cq-source-file/resources"
 )
 
 var (
@@ -12,7 +12,7 @@ var (
 
 func Plugin() *source.Plugin {
 	return source.NewPlugin(
-		"github.com/dihedron-localfile",
+		"github.com/dihedron-file",
 		Version,
 		nil, // no static tables
 		client.New,

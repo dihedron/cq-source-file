@@ -13,7 +13,7 @@ import (
 	"github.com/cloudquery/plugin-sdk/schema"
 	"github.com/dihedron/cq-plugin-utils/format"
 	"github.com/dihedron/cq-plugin-utils/pointer"
-	"github.com/dihedron/cq-source-localfile/client"
+	"github.com/dihedron/cq-source-file/client"
 	"github.com/xuri/excelize/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -114,13 +114,8 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 					entry[keys[i]] = values[i]
 				}
 				client.Data = append(client.Data, entry)
-				// for _, colCell := range row {
-				// 	fmt.Print(colCell, "\t")
-				// }
 			}
 		}
-		// return nil, errors.New("not implemented")
-		// TODO: add eXcel, TOML
 	default:
 		client.Logger.Error().Str("format", client.Specs.Format).Msg("unsupported format")
 		return nil, fmt.Errorf("unsupported format: %q", client.Specs.Format)
