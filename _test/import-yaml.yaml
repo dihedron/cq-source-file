@@ -1,5 +1,4 @@
-
-
+---
 kind: source
 spec:
   name: local_yaml
@@ -27,14 +26,3 @@ spec:
   version: v2.0.5
   spec:
     connection_string: ./import.sqlite
-# ---
-# kind: destination
-# spec:
-#   name: postgresql
-#   registry: github
-#   path: cloudquery/postgresql
-#   version: v4.0.5
-#   spec:
-#     connection_string: postgresql://cloudquery:cloudquery@localhost:15433/cloudquery?sslmode=disable    
-# #    connection_string: postgresql://cloudquery:cloudquery@localhost:5432/cloudquery?sslmode=disable  
-# #    connection_string: postgresql://superset:superset@localhost:15432/superset?sslmode=disable
