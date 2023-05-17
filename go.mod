@@ -6,6 +6,7 @@ require (
 	github.com/cloudquery/plugin-sdk v1.45.0
 	github.com/dihedron/cq-plugin-utils v0.0.0-20230515115130-eb4d7b050d1c
 	github.com/rs/zerolog v1.29.1
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -34,5 +35,4 @@ require (
 	google.golang.org/grpc v1.54.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

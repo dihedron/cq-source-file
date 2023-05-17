@@ -6,5 +6,6 @@ import (
 )
 
 func main() {
-	serve.Source(plugin.Plugin())
+	p := plugin.Plugin()
+	serve.Source(p)
 }

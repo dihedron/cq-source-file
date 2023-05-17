@@ -14,6 +14,7 @@ import (
 type Client struct {
 	Logger zerolog.Logger
 	Specs  *Spec
+	Data   []map[string]any
 }
 
 func (c *Client) ID() string {
@@ -27,10 +28,7 @@ func New(ctx context.Context, logger zerolog.Logger, s specs.Source, opts source
 		return nil, fmt.Errorf("failed to unmarshal plugin spec: %w", err)
 	}
 
-	// TODO: Add your client initialization here
-	logger.Debug().Str("spec", format.ToJSON(pluginSpec)).Msg("Plugin Spec")
-
-	logger.Info().Msg("openstack client created")
+	logger.Debug().Str("spec", format.ToJSON(pluginSpec)).Msg("plugin spec")
 
 	return &Client{
 		Logger: logger,

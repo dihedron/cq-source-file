@@ -1,0 +1,39 @@
+
+
+kind: source
+spec:
+  name: local_json
+  registry: local
+  path: /data/workspaces/gomods/cq-source-localfile/dist/cq-source-localfile_linux_amd64_v1/cq-source-localfile
+  version: v1.0.0
+  tables: 
+    ["*"]
+  destinations:
+    - sqlite
+  spec:
+    file: ./test.json
+    format: json
+    table: my_json_data
+    keys: [value]
+    types:
+      value: string
+      color: string
+---
+kind: destination
+spec:
+  name: sqlite
+  path: cloudquery/sqlite
+  version: v2.0.5
+  spec:
+    connection_string: ./import.sqlite
+# ---
+# kind: destination
+# spec:
+#   name: postgresql
+#   registry: github
+#   path: cloudquery/postgresql
+#   version: v4.0.5
+#   spec:
+#     connection_string: postgresql://cloudquery:cloudquery@localhost:15433/cloudquery?sslmode=disable    
+# #    connection_string: postgresql://cloudquery:cloudquery@localhost:5432/cloudquery?sslmode=disable  
+# #    connection_string: postgresql://superset:superset@localhost:15432/superset?sslmode=disable
