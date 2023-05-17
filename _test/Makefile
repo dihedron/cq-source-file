@@ -6,6 +6,10 @@ json: build
 yaml: build
 	cloudquery sync import-yaml.yaml --log-level=debug --telemetry-level=none
 
+.PHONY: csv
+csv: build
+	cloudquery sync import-csv.yaml --log-level=debug --telemetry-level=none
+
 .PHONY: build
 build:
 	cd .. && make && cd _test

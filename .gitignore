@@ -24,7 +24,7 @@ _test/*.sqlite
 
 .DS_Store
 
-cq-source-localfile
+cq-source-file
 
 dist
 *.log

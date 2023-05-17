@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/cloudquery/plugin-sdk/schema"
 	"github.com/dihedron/cq-plugin-utils/format"
+	"github.com/dihedron/cq-plugin-utils/pointer"
 	"github.com/dihedron/cq-source-localfile/client"
 	"gopkg.in/yaml.v3"
 )
@@ -40,7 +43,31 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 			client.Logger.Error().Err(err).Msg("error unmarshalling data from JSON")
 			return nil, fmt.Errorf("error unmarshalling data from JSON: %w", err)
 		}
-		// TODO: add eXcel, TOML, CSV
+	case "csv":
+		if client.Specs.Separator == nil {
+			client.Specs.Separator = pointer.To(",")
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(data))
+		var keys []string
+		client.Data = []map[string]any{}
+		first := true
+		for scanner.Scan() {
+			line := scanner.Text()
+			client.Logger.Debug().Str("line", line).Msg("read line from input file")
+			if first {
+				first = false
+				keys = strings.Split(line, *client.Specs.Separator)
+			} else {
+				values := strings.Split(line, *client.Specs.Separator)
+				entry := map[string]any{}
+				for i := 0; i < len(keys); i++ {
+					entry[keys[i]] = values[i]
+				}
+				client.Data = append(client.Data, entry)
+			}
+		}
+		//return nil, errors.New("not implemented")
+		// TODO: add eXcel, TOML
 	default:
 		client.Logger.Error().Str("format", client.Specs.Format).Msg("unsupported format")
 		return nil, fmt.Errorf("unsupported format: %q", client.Specs.Format)
@@ -49,13 +76,12 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 	if len(client.Data) > 0 {
 		columns := []schema.Column{}
 		for name := range client.Data[0] {
-
 			client.Logger.Debug().Str("name", name).Msg("adding column")
 			column := schema.Column{
 				Name:        name,
 				Description: fmt.Sprintf("The column mapping the %q field from the input data", name),
+				Resolver:    fetchColumn,
 			}
-
 			for _, v := range client.Specs.Keys {
 				if name == v {
 					client.Logger.Debug().Str("name", name).Msg("column is primary key")
@@ -63,7 +89,6 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 					break
 				}
 			}
-
 			switch strings.ToLower(client.Specs.Types[name]) {
 			case "string", "str", "s":
 				client.Logger.Debug().Str("name", name).Msg("column is of type string")
@@ -78,12 +103,9 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 				client.Logger.Debug().Str("name", name).Msg("column is of unmapped type, assuming string")
 				column.Type = schema.TypeString
 			}
-			column.Resolver = fetchColumn
-
 			columns = append(columns, column)
 		}
-
-		client.Logger.Debug().Msg("returning tables")
+		client.Logger.Debug().Msg("returning table")
 		return []*schema.Table{
 			{
 				Name:     client.Specs.Table,
@@ -92,16 +114,12 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 			},
 		}, nil
 	}
-
 	return nil, errors.New("no data in file")
 }
 
 func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resource, res chan<- interface{}) error {
-
 	client := meta.(*client.Client)
-
 	client.Logger.Debug().Msg("fetching data...")
-
 	for _, row := range client.Data {
 		client.Logger.Debug().Msg("returning single row")
 		res <- row
@@ -111,13 +129,7 @@ func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 
 func fetchColumn(ctx context.Context, meta schema.ClientMeta, resource *schema.Resource, c schema.Column) error {
 	client := meta.(*client.Client)
-
 	client.Logger.Debug().Str("resource", format.ToJSON(resource)).Str("column", format.ToJSON(c)).Str("item type", fmt.Sprintf("%T", resource.Item)).Msg("fetching column...")
 	item := resource.Item.(map[string]any)
-	return resource.Set(c.Name, item[c.Name]) //"aaa")//funk.Get(r.Item, path, funk.WithAllowZero()))
-	// for k, v := range item {
-	// 	client.Logger.Debug().Str("key", k).Any("value", v).Msg("map entry")
-	// }
-
-	// return nil
+	return resource.Set(c.Name, item[c.Name])
 }
