@@ -14,6 +14,7 @@ import (
 	"github.com/dihedron/cq-plugin-utils/format"
 	"github.com/dihedron/cq-plugin-utils/pointer"
 	"github.com/dihedron/cq-source-localfile/client"
+	"github.com/xuri/excelize/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,27 +24,37 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 
 	client.Logger.Debug().Str("file", client.Specs.File).Msg("reading input from file")
 
-	data, err := os.ReadFile(client.Specs.File)
-	if err != nil {
-		client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
-		return nil, fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
-	}
-
-	client.Logger.Debug().Str("file", client.Specs.File).Msg("input file read")
-
 	client.Data = []map[string]any{}
 	switch strings.ToLower(client.Specs.Format) {
 	case "json":
+		data, err := os.ReadFile(client.Specs.File)
+		if err != nil {
+			client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+			return nil, fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
+		}
+		client.Logger.Debug().Str("file", client.Specs.File).Msg("input file read")
 		if err := json.Unmarshal(data, &client.Data); err != nil {
 			client.Logger.Error().Err(err).Msg("error unmarshalling data from JSON")
 			return nil, fmt.Errorf("error unmarshalling data from JSON: %w", err)
 		}
-	case "yaml":
+	case "yaml", "yml":
+		data, err := os.ReadFile(client.Specs.File)
+		if err != nil {
+			client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+			return nil, fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
+		}
+		client.Logger.Debug().Str("file", client.Specs.File).Msg("input file read")
 		if err := yaml.Unmarshal(data, &client.Data); err != nil {
 			client.Logger.Error().Err(err).Msg("error unmarshalling data from JSON")
 			return nil, fmt.Errorf("error unmarshalling data from JSON: %w", err)
 		}
 	case "csv":
+		data, err := os.ReadFile(client.Specs.File)
+		if err != nil {
+			client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+			return nil, fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
+		}
+		client.Logger.Debug().Str("file", client.Specs.File).Msg("input file read")
 		if client.Specs.Separator == nil {
 			client.Specs.Separator = pointer.To(",")
 		}
@@ -66,7 +77,49 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 				client.Data = append(client.Data, entry)
 			}
 		}
-		//return nil, errors.New("not implemented")
+	case "xsl", "xlsx", "excel":
+		xls, err := excelize.OpenFile(client.Specs.File)
+		if err != nil {
+			client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+			return nil, fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
+		}
+		defer func() {
+			if err := xls.Close(); err != nil {
+				client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+			}
+		}()
+		// Get all the rows in the Sheet1.
+		if client.Specs.Sheet == nil {
+			// get the currently active sheet in the file
+			client.Specs.Sheet = pointer.To(xls.GetSheetName(xls.GetActiveSheetIndex()))
+		}
+		client.Logger.Debug().Str("sheet", *client.Specs.Sheet).Msg("getting data from sheet")
+		rows, err := xls.GetRows(*client.Specs.Sheet)
+		if err != nil {
+			client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error getting rows")
+			return nil, fmt.Errorf("error getting rows from input file %q: %w", client.Specs.File, err)
+		}
+
+		var keys []string
+		client.Data = []map[string]any{}
+		first := true
+		for _, row := range rows {
+			if first {
+				first = false
+				keys = row
+			} else {
+				values := row
+				entry := map[string]any{}
+				for i := 0; i < len(keys); i++ {
+					entry[keys[i]] = values[i]
+				}
+				client.Data = append(client.Data, entry)
+				// for _, colCell := range row {
+				// 	fmt.Print(colCell, "\t")
+				// }
+			}
+		}
+		// return nil, errors.New("not implemented")
 		// TODO: add eXcel, TOML
 	default:
 		client.Logger.Error().Str("format", client.Specs.Format).Msg("unsupported format")

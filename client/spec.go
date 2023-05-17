@@ -7,4 +7,5 @@ type Spec struct {
 	Keys      []string          `json:"keys,omitempty" yaml:"keys,omitempty"`
 	Types     map[string]string `json:"types,omitempty" yaml:"types,omitempty"`
 	Separator *string           `json:"separator,omitempty" yaml:"separator,omitempty"` // CSV only
+	Sheet     *string           `json:"sheet,omitempty" yaml:"sheet,omitempty"`         // XLSX only
 }

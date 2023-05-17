@@ -10,6 +10,11 @@ yaml: build
 csv: build
 	cloudquery sync import-csv.yaml --log-level=debug --telemetry-level=none
 
+.PHONY: xlsx
+xlsx: build
+	cloudquery sync import-xlsx.yaml --log-level=debug --telemetry-level=none
+
+
 .PHONY: build
 build:
 	cd .. && make && cd _test
