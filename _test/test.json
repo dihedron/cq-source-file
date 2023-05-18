@@ -1,30 +1,44 @@
 [
 	{
 		"color": "red",
-		"value": "#f00"
+		"value": "#f00",
+		"optimized": true,
+		"count": 123
 	},
 	{
 		"color": "green",
-		"value": "#0f0"
+		"value": "#0f0",
+		"optimized": false,
+		"count": -123
 	},
 	{
 		"color": "blue",
-		"value": "#00f"
+		"value": "#00f",
+		"optimized": true,
+		"count": -321
 	},
 	{
 		"color": "cyan",
-		"value": "#0ff"
+		"value": "#0ff",
+		"optimized": false,
+		"count": 321
 	},
 	{
 		"color": "magenta",
-		"value": "#f0f"
+		"value": "#f0f",
+		"optimized": true,
+		"count": 456
 	},
 	{
 		"color": "yellow",
-		"value": "#ff0"
+		"value": "#ff0",
+		"optimized": false,
+		"count": -456
 	},
 	{
 		"color": "black",
-		"value": "#000"
+		"value": "#000",
+		"optimized": true,
+		"count": 789
 	}
 ]
