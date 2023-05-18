@@ -23,6 +23,7 @@ spec:
         unique: true
       - name: optimized
         type: boolean
+        notnull: true # comment to get a null
       - name: count
         type: integer
 ---
