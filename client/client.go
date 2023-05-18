@@ -14,7 +14,6 @@ import (
 type Client struct {
 	Logger zerolog.Logger
 	Specs  *Spec
-	//Data   []map[string]any
 }
 
 func (c *Client) ID() string {
