@@ -13,10 +13,18 @@ spec:
     file: ./test.json
     format: json
     table: my_json_data
-    keys: [color]
-    types:
-      value: string
-      color: string
+    columns:
+      - name: color
+        type: string
+        key: true
+        unique: true
+      - name: value
+        type: string
+        unique: true
+      - name: optimized
+        type: boolean
+      - name: count
+        type: integer
 ---
 kind: destination
 spec:

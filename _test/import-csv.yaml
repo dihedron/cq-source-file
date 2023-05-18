@@ -14,10 +14,18 @@ spec:
     format: csv
     table: my_csv_data
     separator: ","
-    keys: [color]
-    types:
-      value: string
-      color: string
+    columns:
+      - name: color
+        type: string
+        key: true
+        unique: true
+      - name: value
+        type: string
+        unique: true
+      - name: optimized
+        type: boolean
+      - name: count
+        type: integer
 ---
 kind: destination
 spec:
