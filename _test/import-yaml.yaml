@@ -1,7 +1,7 @@
 ---
 kind: source
 spec:
-  name: local_yaml
+  name: test1
   registry: local
   path: /data/workspaces/gomods/cq-source-file/dist/cq-source-file_linux_amd64_v1/cq-source-file
   version: v1.0.0
@@ -12,19 +12,56 @@ spec:
   spec:
     file: ./test.yaml
     format: yaml
-    table: my_yaml_data
+    table: T1
+    filter: _.color startsWith 'b'
     columns:
       - name: color
         type: string
         key: true
+        notnull: true
         unique: true
       - name: value
         type: string
         unique: true
+        notnull: true
       - name: optimized
         type: boolean
+        notnull: true
       - name: count
         type: integer
+        notnull: true
+---
+kind: source
+spec:
+  name: test2
+  registry: local
+  path: /data/workspaces/gomods/cq-source-file/dist/cq-source-file_linux_amd64_v1/cq-source-file
+  version: v1.0.0
+  tables: 
+    ["*"]
+  destinations:
+    - sqlite
+  spec:
+    file: ./test.yaml
+    format: yaml
+    table: T2
+    filter: _.color not startsWith 'b'
+    columns:
+      - name: color
+        type: string
+        key: true
+        notnull: true
+        unique: true
+      - name: value
+        type: string
+        unique: true
+        notnull: true
+      - name: optimized
+        type: boolean
+        notnull: true
+      - name: count
+        type: integer
+        notnull: true
 ---
 kind: destination
 spec:

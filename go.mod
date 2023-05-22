@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/antonmedv/expr v1.12.5
 	github.com/cloudquery/plugin-sdk v1.45.0
 	github.com/dihedron/cq-plugin-utils v0.0.0-20230515115130-eb4d7b050d1c
 	github.com/rs/zerolog v1.29.1
