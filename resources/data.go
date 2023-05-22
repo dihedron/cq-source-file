@@ -261,7 +261,13 @@ func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 // and sets it into the resource being returned to CloudQuery.
 func fetchColumn(ctx context.Context, meta schema.ClientMeta, resource *schema.Resource, c schema.Column) error {
 	client := meta.(*client.Client)
-	// client.Logger.Debug().Str("resource", format.ToJSON(resource)).Str("column", format.ToJSON(c)).Str("item type", fmt.Sprintf("%T", resource.Item)).Msg("fetching column...")
+	client.Logger.Debug().
+		Str("context", format.ToJSON(ctx)).
+		Str("resource", format.ToJSON(resource)).
+		Str("column", format.ToJSON(c)).
+		Str("item type", fmt.Sprintf("%T", resource.Item)).
+		Msg("fetching column...")
+
 	row := resource.Item.(map[string]any)
 	value := row[c.Name]
 	client.Logger.Debug().Str("value", fmt.Sprintf("%v", value)).Str("type", fmt.Sprintf("%T", value)).Msg("checking value type")
