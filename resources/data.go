@@ -12,6 +12,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/antonmedv/expr"
 	"github.com/cloudquery/plugin-sdk/schema"
 	"github.com/dihedron/cq-plugin-utils/format"
 	"github.com/dihedron/cq-plugin-utils/pointer"
@@ -20,10 +21,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Env struct {
+	Row map[string]any `expr:"row"`
+}
+
 // GetTable uses data in the spec section of the client configuration to
 // dynamically build the information about the columns being imported.
 func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, error) {
 	client := meta.(*client.Client)
+
+	row := map[string]any{}
 
 	columns := []schema.Column{}
 	for _, c := range client.Specs.Columns {
@@ -59,21 +66,41 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 		case "string", "str", "s":
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of type string")
 			column.Type = schema.TypeString
+			row[c.Name] = ""
 		case "integer", "int", "i":
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of type int")
 			column.Type = schema.TypeInt
+			row[c.Name] = 0
 		case "boolean", "bool", "b":
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of type bool")
 			column.Type = schema.TypeBool
+			row[c.Name] = false
 		default:
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of unmapped type, assuming string")
 			column.Type = schema.TypeString
+			row[c.Name] = ""
 		}
 		columns = append(columns, column)
+	}
 
+	// now initialise the filter
+	if client.Specs.Filter != nil {
+		env := map[string]any{
+			"_": row,
+			"string": func(v any) string {
+				return fmt.Sprintf("%v", v)
+			},
+		}
+		if program, err := expr.Compile(*client.Specs.Filter, expr.Env(env), expr.AsBool()); err != nil {
+			client.Logger.Error().Err(err).Str("filter", *client.Specs.Filter).Msg("error compiling expression evaluator")
+		} else {
+			client.Logger.Debug().Str("filter", *client.Specs.Filter).Msg("expression evaluator successfully compiled")
+			client.Specs.Evaluator = program
+		}
 	}
 
 	client.Logger.Debug().Msg("returning table")
+
 	return []*schema.Table{
 		{
 			Name:     client.Specs.Table,
@@ -204,9 +231,29 @@ func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 	}
 
 	for _, row := range rows {
-		client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("returning single row")
-		res <- row
+		accepted := true
+		if client.Specs.Evaluator != nil {
+			accepted = false
+			env := map[string]any{
+				"_": row,
+			}
+
+			if output, err := expr.Run(client.Specs.Evaluator, env); err != nil {
+				client.Logger.Error().Err(err).Msg("error running evaluator")
+			} else {
+				client.Logger.Debug().Any("output", output).Msg("received output")
+				accepted = output.(bool)
+			}
+		}
+
+		if accepted {
+			client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("returning single row")
+			res <- row
+		} else {
+			client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("rejecting single row")
+		}
 	}
+
 	return nil
 }
 
