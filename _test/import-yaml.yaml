@@ -12,24 +12,28 @@ spec:
   spec:
     file: ./test.yaml
     format: yaml
-    table: T1
-    filter: _.color startsWith 'b'
-    columns:
-      - name: color
-        type: string
-        key: true
-        notnull: true
-        unique: true
-      - name: value
-        type: string
-        unique: true
-        notnull: true
-      - name: optimized
-        type: boolean
-        notnull: true
-      - name: count
-        type: integer
-        notnull: true
+    table: 
+      name: T1
+      filter: _.color startsWith 'b'
+      columns:
+        - name: color
+          type: string
+          key: true
+          notnull: true
+          unique: true
+        - name: ucolor
+          type: string
+          transform: "{{index .Row \"color\" | toString | upper}}"
+        - name: value
+          type: string
+          unique: true
+          notnull: true
+        - name: optimized
+          type: boolean
+          notnull: true
+        - name: count
+          type: integer
+          notnull: true
 ---
 kind: source
 spec:
@@ -44,24 +48,28 @@ spec:
   spec:
     file: ./test.yaml
     format: yaml
-    table: T2
-    filter: _.color not startsWith 'b'
-    columns:
-      - name: color
-        type: string
-        key: true
-        notnull: true
-        unique: true
-      - name: value
-        type: string
-        unique: true
-        notnull: true
-      - name: optimized
-        type: boolean
-        notnull: true
-      - name: count
-        type: integer
-        notnull: true
+    table: 
+      name: T2
+      filter: _.color not startsWith 'b'
+      columns:
+        - name: color
+          type: string
+          key: true
+          notnull: true
+          unique: true
+        - name: ucolor
+          type: string
+          transform: "{{index .Row \"color\" | toString | upper}}"
+        - name: value
+          type: string
+          unique: true
+          notnull: true
+        - name: optimized
+          type: boolean
+          notnull: true
+        - name: count
+          type: integer
+          notnull: true
 ---
 kind: destination
 spec:

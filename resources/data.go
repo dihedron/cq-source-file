@@ -33,7 +33,7 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 	row := map[string]any{}
 
 	columns := []schema.Column{}
-	for _, c := range client.Specs.Columns {
+	for _, c := range client.Specs.Table.Columns {
 		client.Logger.Debug().Str("name", c.Name).Msg("adding column")
 
 		// prepare the template for value transformation if there is a transform
@@ -46,7 +46,7 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 				c.Template = tpl
 				client.Logger.Debug().Str("template", format.ToJSON(tpl)).Str("transform", *c.Transform).Msg("template after having parsed transform")
 			}
-			client.Logger.Debug().Str("column", c.Name).Str("specs", format.ToJSON(client.Specs.Columns)).Msg("column metadata after having parsed transform")
+			client.Logger.Debug().Str("column", c.Name).Str("specs", format.ToJSON(client.Specs.Table.Columns)).Msg("column metadata after having parsed transform")
 		}
 
 		if c.Description == nil {
@@ -84,18 +84,18 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 	}
 
 	// now initialise the filter
-	if client.Specs.Filter != nil {
+	if client.Specs.Table.Filter != nil {
 		env := map[string]any{
 			"_": row,
 			"string": func(v any) string {
 				return fmt.Sprintf("%v", v)
 			},
 		}
-		if program, err := expr.Compile(*client.Specs.Filter, expr.Env(env), expr.AsBool()); err != nil {
-			client.Logger.Error().Err(err).Str("filter", *client.Specs.Filter).Msg("error compiling expression evaluator")
+		if program, err := expr.Compile(*client.Specs.Table.Filter, expr.Env(env), expr.AsBool()); err != nil {
+			client.Logger.Error().Err(err).Str("filter", *client.Specs.Table.Filter).Msg("error compiling expression evaluator")
 		} else {
-			client.Logger.Debug().Str("filter", *client.Specs.Filter).Msg("expression evaluator successfully compiled")
-			client.Specs.Evaluator = program
+			client.Logger.Debug().Str("filter", *client.Specs.Table.Filter).Msg("expression evaluator successfully compiled")
+			client.Specs.Table.Evaluator = program
 		}
 	}
 
@@ -103,7 +103,7 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 
 	return []*schema.Table{
 		{
-			Name:     client.Specs.Table,
+			Name:     client.Specs.Table.Name,
 			Resolver: fetchData,
 			Columns:  columns,
 		},
@@ -166,10 +166,10 @@ func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 				if len(values) >= len(keys) {
 					row := map[string]any{}
 					for i := 0; i < len(keys); i++ {
-						for _, column := range client.Specs.Columns {
+						for _, column := range client.Specs.Table.Columns {
 
 							if keys[i] == column.Name {
-								row[client.Specs.Columns[i].Name] = values[i]
+								row[client.Specs.Table.Columns[i].Name] = values[i]
 							}
 						}
 					}
@@ -232,13 +232,13 @@ func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 
 	for _, row := range rows {
 		accepted := true
-		if client.Specs.Evaluator != nil {
+		if client.Specs.Table.Evaluator != nil {
 			accepted = false
 			env := map[string]any{
 				"_": row,
 			}
 
-			if output, err := expr.Run(client.Specs.Evaluator, env); err != nil {
+			if output, err := expr.Run(client.Specs.Table.Evaluator, env); err != nil {
 				client.Logger.Error().Err(err).Msg("error running evaluator")
 			} else {
 				client.Logger.Debug().Any("output", output).Msg("received output")
@@ -267,7 +267,7 @@ func fetchColumn(ctx context.Context, meta schema.ClientMeta, resource *schema.R
 	client.Logger.Debug().Str("value", fmt.Sprintf("%v", value)).Str("type", fmt.Sprintf("%T", value)).Msg("checking value type")
 
 	// now apply the transform if it is available
-	for _, spec := range client.Specs.Columns {
+	for _, spec := range client.Specs.Table.Columns {
 		if spec.Name == c.Name && spec.Template != nil {
 			client.Logger.Debug().Msg("applying transform...")
 			var buffer bytes.Buffer

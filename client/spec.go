@@ -16,13 +16,18 @@ type Column struct {
 	Transform   *string            `json:"transform,omitempty" yaml:"transform,omitempty"`
 	Template    *template.Template `json:"-" yaml:"-"`
 }
-type Spec struct {
-	File      string      `json:"file,omitempty" yaml:"file,omitempty"`
-	Format    string      `json:"format,omitempty" yaml:"format,omitempty"`
-	Table     string      `json:"table,omitempty" yaml:"table,omitempty"`
+
+type Table struct {
+	Name      string      `json:"name,omitempty" yaml:"name,omitempty"`
 	Filter    *string     `json:"filter,omitempty" yaml:"filter,omitempty"`
 	Evaluator *vm.Program `json:"-,omitempty" yaml:"-,omitempty"`
 	Columns   []*Column   `json:"columns,omitempty" yaml:"columns,omitempty"`
-	Separator *string     `json:"separator,omitempty" yaml:"separator,omitempty"` // CSV only
-	Sheets    []string    `json:"sheets,omitempty" yaml:"sheets,omitempty"`       // XLSX only
+}
+type Spec struct {
+	File      string   `json:"file,omitempty" yaml:"file,omitempty"`
+	Format    string   `json:"format,omitempty" yaml:"format,omitempty"`
+	Table     Table    `json:"table,omitempty" yaml:"table,omitempty"`
+	SubTables []Table  `json:"subtables,omitempty" yaml:"subtables,omitempty"`
+	Separator *string  `json:"separator,omitempty" yaml:"separator,omitempty"` // CSV only
+	Sheets    []string `json:"sheets,omitempty" yaml:"sheets,omitempty"`       // XLSX only
 }
