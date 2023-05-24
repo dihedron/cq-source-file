@@ -31,6 +31,31 @@ spec:
         - name: count
           type: integer
           notnull: true
+    relations:
+      - name: T1_UPPER
+        filter: _.color startsWith 'blu'
+        columns:
+          - name: upper_color
+            type: string
+            key: true
+            unique: true
+            notnull: true
+            transform: "{{index .Row \"color\" | toString | upper}}"
+          - name: upper_value
+            type: string
+            transform: "{{index .Row \"value\" | toString | upper}}"
+      - name: T1_UPPER
+        filter: _.color startsWith 'bla'
+        columns:
+          - name: upper_color
+            type: string
+            key: true
+            unique: true
+            notnull: true
+            transform: "{{index .Row \"color\" | toString | upper}}"
+          - name: upper_value
+            type: string
+            transform: "{{index .Row \"value\" | toString | upper}}"
 ---
 kind: source
 spec:
@@ -46,8 +71,8 @@ spec:
     file: ./test.json
     format: json
     table: 
-      name: T2
-      filter: "_.color not startsWith 'b'"
+      name: T2    
+      filter: _.color not startsWith 'b'
       columns:
         - name: color
           type: string
@@ -72,4 +97,3 @@ spec:
   version: v2.0.5
   spec:
     connection_string: ./import.sqlite
-
