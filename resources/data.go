@@ -9,7 +9,10 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
+	"github.com/antonmedv/expr"
 	"github.com/cloudquery/plugin-sdk/schema"
 	"github.com/dihedron/cq-plugin-utils/format"
 	"github.com/dihedron/cq-plugin-utils/pointer"
@@ -18,14 +21,34 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Env struct {
+	Row map[string]any `expr:"row"`
+}
+
 // GetTable uses data in the spec section of the client configuration to
 // dynamically build the information about the columns being imported.
 func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, error) {
 	client := meta.(*client.Client)
 
+	row := map[string]any{}
+
 	columns := []schema.Column{}
 	for _, c := range client.Specs.Columns {
 		client.Logger.Debug().Str("name", c.Name).Msg("adding column")
+
+		// prepare the template for value transformation if there is a transform
+		if c.Transform != nil {
+			tpl, err := template.New(c.Name).Funcs(sprig.FuncMap()).Parse(*c.Transform)
+			if err != nil {
+				client.Logger.Error().Err(err).Str("column", c.Name).Str("transform", *c.Transform).Msg("error parsing column transform")
+				return nil, fmt.Errorf("error parsing transform for column %q: %w", c.Name, err)
+			} else {
+				c.Template = tpl
+				client.Logger.Debug().Str("template", format.ToJSON(tpl)).Str("transform", *c.Transform).Msg("template after having parsed transform")
+			}
+			client.Logger.Debug().Str("column", c.Name).Str("specs", format.ToJSON(client.Specs.Columns)).Msg("column metadata after having parsed transform")
+		}
+
 		if c.Description == nil {
 			c.Description = pointer.To(fmt.Sprintf("The column mapping the %q field from the input data", c.Name))
 		}
@@ -43,20 +66,41 @@ func GetTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, erro
 		case "string", "str", "s":
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of type string")
 			column.Type = schema.TypeString
+			row[c.Name] = ""
 		case "integer", "int", "i":
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of type int")
 			column.Type = schema.TypeInt
+			row[c.Name] = 0
 		case "boolean", "bool", "b":
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of type bool")
 			column.Type = schema.TypeBool
+			row[c.Name] = false
 		default:
 			client.Logger.Debug().Str("name", c.Name).Msg("column is of unmapped type, assuming string")
 			column.Type = schema.TypeString
+			row[c.Name] = ""
 		}
 		columns = append(columns, column)
 	}
 
+	// now initialise the filter
+	if client.Specs.Filter != nil {
+		env := map[string]any{
+			"_": row,
+			"string": func(v any) string {
+				return fmt.Sprintf("%v", v)
+			},
+		}
+		if program, err := expr.Compile(*client.Specs.Filter, expr.Env(env), expr.AsBool()); err != nil {
+			client.Logger.Error().Err(err).Str("filter", *client.Specs.Filter).Msg("error compiling expression evaluator")
+		} else {
+			client.Logger.Debug().Str("filter", *client.Specs.Filter).Msg("expression evaluator successfully compiled")
+			client.Specs.Evaluator = program
+		}
+	}
+
 	client.Logger.Debug().Msg("returning table")
+
 	return []*schema.Table{
 		{
 			Name:     client.Specs.Table,
@@ -147,50 +191,69 @@ func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 			}
 		}()
 		// get all the rows in the requested (or the active) sheet
-		if client.Specs.Sheet == nil {
+		if len(client.Specs.Sheets) == 0 {
 			// get the currently active sheet in the file
-			client.Specs.Sheet = pointer.To(xls.GetSheetName(xls.GetActiveSheetIndex()))
+			client.Specs.Sheets = []string{xls.GetSheetName(xls.GetActiveSheetIndex())}
 		}
-		client.Logger.Debug().Str("sheet", *client.Specs.Sheet).Msg("getting data from sheet")
-		xlsrows, err := xls.GetRows(*client.Specs.Sheet)
-		if err != nil {
-			client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error getting rows")
-			return fmt.Errorf("error getting rows from input file %q: %w", client.Specs.File, err)
-		}
+		for _, sheet := range client.Specs.Sheets {
+			client.Logger.Debug().Str("sheet", sheet).Msg("getting data from sheet")
+			xlsrows, err := xls.GetRows(sheet)
+			if err != nil {
+				client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error getting rows")
+				return fmt.Errorf("error getting rows from input file %q: %w", client.Specs.File, err)
+			}
 
-		var keys []string
-		first := true
-		for _, xlsrow := range xlsrows {
-			if first {
-				first = false
-				keys = xlsrow
-			} else {
-				values := xlsrow
-				row := map[string]any{}
-				for i := 0; i < len(keys); i++ {
-					if i < len(values) {
-						// XLSX rows can be sparse, in which case all TRAILING empty cells are removed
-						// from the returned slice; empty cells in the middle are still valid
-						row[keys[i]] = values[i]
-					} else {
-						row[keys[i]] = nil
+			var keys []string
+			first := true
+			for _, xlsrow := range xlsrows {
+				if first {
+					first = false
+					keys = xlsrow
+				} else {
+					values := xlsrow
+					row := map[string]any{}
+					for i := 0; i < len(keys); i++ {
+						if i < len(values) {
+							// XLSX rows can be sparse, in which case all TRAILING empty cells are removed
+							// from the returned slice; empty cells in the middle are still valid
+							row[keys[i]] = values[i]
+						} else {
+							row[keys[i]] = nil
+						}
 					}
+					rows = append(rows, row)
 				}
-				rows = append(rows, row)
 			}
 		}
-
-		// TODO: add more formats
 	default:
 		client.Logger.Error().Str("format", client.Specs.Format).Msg("unsupported format")
 		return fmt.Errorf("unsupported format: %q", client.Specs.Format)
-
 	}
 
 	for _, row := range rows {
-		client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("returning single row")
-		res <- row
+		accepted := true
+		if client.Specs.Evaluator != nil {
+			accepted = false
+			env := map[string]any{
+				"_": row,
+			}
+
+			if output, err := expr.Run(client.Specs.Evaluator, env); err != nil {
+				client.Logger.Error().Err(err).Msg("error running evaluator")
+			} else {
+				client.Logger.Debug().Any("output", output).Msg("received output")
+				accepted = output.(bool)
+			}
+		}
+
+		if accepted {
+			client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("returning single row")
+			res <- row
+		} else {
+			client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("rejecting single row")
+		}
 	}
+
 	return nil
 }
 
@@ -199,9 +262,37 @@ func fetchData(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 func fetchColumn(ctx context.Context, meta schema.ClientMeta, resource *schema.Resource, c schema.Column) error {
 	client := meta.(*client.Client)
 	// client.Logger.Debug().Str("resource", format.ToJSON(resource)).Str("column", format.ToJSON(c)).Str("item type", fmt.Sprintf("%T", resource.Item)).Msg("fetching column...")
-	item := resource.Item.(map[string]any)
-	value := item[c.Name]
+	row := resource.Item.(map[string]any)
+	value := row[c.Name]
 	client.Logger.Debug().Str("value", fmt.Sprintf("%v", value)).Str("type", fmt.Sprintf("%T", value)).Msg("checking value type")
+
+	// now apply the transform if it is available
+	for _, spec := range client.Specs.Columns {
+		if spec.Name == c.Name && spec.Template != nil {
+			client.Logger.Debug().Msg("applying transform...")
+			var buffer bytes.Buffer
+			target := struct {
+				Name  string
+				Value any
+				Type  schema.ValueType
+				Row   map[string]any
+			}{
+				Name:  c.Name,
+				Value: value,
+				Type:  c.Type,
+				Row:   row,
+			}
+			if err := spec.Template.Execute(&buffer, target); err != nil {
+				client.Logger.Error().Err(err).Any("value", value).Str("transform", *spec.Transform).Any("row", row).Msg("error applying transform")
+				return err
+			}
+			value = buffer.String()
+			break
+		}
+	}
+
+	client.Logger.Debug().Any("value", value).Msg("after transform...")
+
 	if value == nil {
 		client.Logger.Warn().Msg("value is nil")
 		if c.CreationOptions.NotNull {
