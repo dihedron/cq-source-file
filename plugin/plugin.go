@@ -16,6 +16,6 @@ func Plugin() *source.Plugin {
 		Version,
 		nil, // no static tables
 		client.New,
-		source.WithDynamicTableOption(resources.GetTables),
+		source.WithDynamicTableOption(resources.GetDynamicTables),
 	)
 }
