@@ -176,6 +176,8 @@ func fetchRelationData(table *client.Table) func(ctx context.Context, meta schem
 	return func(ctx context.Context, meta schema.ClientMeta, parent *schema.Resource, res chan<- interface{}) error {
 		client := meta.(*client.Client)
 
+		// grab the parent row and use it to extract the
+		// columns that go into the child relation
 		row := parent.Item.(map[string]any)
 
 		client.Logger.Debug().Str("table", table.Name).Str("row", format.ToJSON(row)).Msg("fetching data from parent...")
@@ -185,6 +187,19 @@ func fetchRelationData(table *client.Table) func(ctx context.Context, meta schem
 			accepted = false
 			env := map[string]any{
 				"_": row,
+				// // custom string manipulation functions here
+				// "toUpper":    strings.ToUpper,
+				// "toLower":    strings.ToLower,
+				// "trimSpace":  strings.TrimSpace,
+				// "trimLeft":   strings.TrimLeft,
+				// "trimRight":  strings.TrimRight,
+				// "trimBoth":   strings.Trim,
+				// "trimPrefix": strings.TrimPrefix,
+				// "trimSuffix": strings.TrimSuffix,
+				// "replace":    strings.Replace,
+				// "replaceAll": strings.ReplaceAll,
+				// "split":      strings.Split,
+				// "repeat":     strings.Repeat,
 			}
 
 			if output, err := expr.Run(table.Evaluator, env); err != nil {
@@ -196,7 +211,11 @@ func fetchRelationData(table *client.Table) func(ctx context.Context, meta schem
 		}
 
 		if accepted {
-			client.Logger.Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("accepting row")
+			if table.Filter != nil && table.Evaluator != nil {
+				client.Logger.Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("accepting row")
+			} else {
+				client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("passing on row")
+			}
 			res <- row
 		} else {
 			client.Logger.Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("rejecting row")
