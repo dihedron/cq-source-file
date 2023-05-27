@@ -17,7 +17,7 @@ type Client struct {
 }
 
 func (c *Client) ID() string {
-	return "github.com/dihedron/cq-source-localfile"
+	return "github.com/dihedron/cq-source-file"
 }
 
 func New(ctx context.Context, logger zerolog.Logger, s specs.Source, opts source.Options) (schema.ClientMeta, error) {
