@@ -1,33 +1,109 @@
 # CloudQuery File Source Plugin
 
-[![test](https://github.com/github.com/dihedron/cq-source-openstack/actions/workflows/test.yaml/badge.svg)](https://github.com/github.com/dihedron/cq-source-openstack/actions/workflows/test.yaml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/github.com/dihedron/cq-source-openstack)](https://goreportcard.com/report/github.com/github.com/dihedron/cq-source-openstack)
+[![test](https://github.com/github.com/dihedron/cq-source-file/actions/workflows/test.yaml/badge.svg)](https://github.com/github.com/dihedron/cq-source-file/actions/workflows/test.yaml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/github.com/dihedron/cq-source-file)](https://goreportcard.com/report/github.com/github.com/dihedron/cq-source-file)
 
 A local file source plugin for CloudQuery that loads data from a file (in JSON, YAML, CSV or XLSX format) to any database, data warehouse or data lake supported by [CloudQuery](https://www.cloudquery.io/), such as PostgreSQL, BigQuery, Athena, and many more.
 
 ## Links
 
  - [CloudQuery Quickstart Guide](https://www.cloudquery.io/docs/quickstart)
- - [Supported Tables](docs/tables/README.md)
+ <!-- - [Supported Tables](docs/tables/README.md) -->
 
 
 ## Configuration
 
-The following source configuration file will sync to a PostgreSQL database. See [the CloudQuery Quickstart](https://www.cloudquery.io/docs/quickstart) for more information on how to configure the source and destination.
+See [the CloudQuery Quickstart](https://www.cloudquery.io/docs/quickstart) for general information on how to configure the source and destination.
+
+This source plugin can extract data from local files (given their path), apply some basic transformation and then provide it to CloudQuery for further processing and loading into the configured destinations.
+
+You can find example configurations in the `_test/` folder, with specific setting for CSV, Microsoft eXcel, JSON and YAML.
+
+The basic configuration is as follow:
 
 ```yaml
+---
 kind: source
 spec:
-  name: "my_source_"
-  path: "github.com/dihedron/file"
-  version: "${VERSION}"
+  name: test1
+  path: dihedron/file
+  version: v0.1.0
+  tables: 
+    ["*"]
   destinations:
-    - "postgresql"
+    - sqlite
   spec:
-    # plugin spec section
+    file: ./test.csv
+    format: csv
+    separator: ","
+    table: 
+      name: T1
+      filter: _.color startsWith 'b'
+      columns:
+        - name: color
+          type: string
+          key: true
+          unique: true
+          notnull: true
+        - name: value
+          type: string
+          unique: true
+          notnull: true
+        - name: optimized
+          type: boolean
+          notnull: true
+        - name: count
+          type: integer
+          notnull: true
+    relations:
+      - name: T1_UPPER
+        filter: _.color startsWith 'blu'
+        columns:
+          - name: upper_color
+            type: string
+            key: true
+            unique: true
+            notnull: true
+            transform: "{{index .Row \"color\" | toString | upper}}"
+          - name: upper_value
+            type: string
+            transform: "{{index .Row \"value\" | toString | upper}}"
+      - name: T1_UPPER
+        filter: _.color startsWith 'bla'
+        columns:
+          - name: upper_color
+            type: string
+            key: true
+            unique: true
+            notnull: true
+            transform: "{{index .Row \"color\" | toString | upper}}"
+          - name: upper_value
+            type: string
+            transform: "{{index .Row \"value\" | toString | upper}}"
 ```
 
-## Development
+This source plugin does not export tables per se. You have to provide the information about the tables and colums that it should extract from the input file.
+
+Thus, the plugin can export any kind of table, along with dependent tables ("relations") based on the metadata that has been provided in the plugin specific `spec` section.
+
+The first part of the configuration file sepcifies that the plugin (`dihedron/file`) at version `v0.1.0` (the latest) should import all tables into an `sqlite` destination in CloudQuery.
+
+The following `spec` provides plugin-specific configuration:
+
+1. first of all it specifies the path to the file that provides the information to be imported into CloudQuery (`./test.csv`), that the file format is `cvs` and that the records are separated by a `,`; CSV files *must* provide a header row that is used to name the columns; the same column names are used in the following comumn specification section;
+2. secondly, the configuration specifies the main table to be imported; each table has a `name` and can provide a `filter`, which is an expression that is applied to each row and shoudl return either `true` (in which case the row is sent to CloudQuery) or `false` (the row is dropped); the expression is bases on [this rule engine grammar](https://github.com/antonmedv/expr); the current row is addressed via the `_` identifier;
+3. the table's colums are enumerated; each column has a `name`, a `type`, and can additionally specify whether it is part of the primary key, whether it has unique values and is non nullable; moreover, there is a `transform` property that provides a way to transform (or set to a constant value) the extracted value, both for data cleansing or for conditional extraction, according to Golang templates syntax;
+4. last, a table can have dependent tables (`relations`), which are weak entities that are related to the main entity; relations are useful when a single line in a CSV, XLSX, YAML or JSON file actually embeds multiple entities, e.g. a host and its NICs.
+ 
+You can declare the main table (e.g. table `hosts`) and the dependent entities (e.g. a table for the host NICs, `host_nics') separately and then extract the different entities -- host and nics, even in 1:N cardinality -- automatically.
+
+Refer to the pprovided tests to see how it works.
+
+## Development backlog
+
+The source plugin is pretty feature complete.
+
+It may interesting to add support for remote data retrieval prior to importing, e.g. by supporting HTTP, FTP, S3 and git URLs in addition to local files in the `file` field, so that the plugin downloads accesses the provided URL for downloading the file before loading it into CloudQuery.
 
 ### Run tests
 
