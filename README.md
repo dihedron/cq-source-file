@@ -90,20 +90,22 @@ The first part of the configuration file sepcifies that the plugin (`dihedron/fi
 
 The following `spec` provides plugin-specific configuration:
 
-1. first of all it specifies the path to the file that provides the information to be imported into CloudQuery (`./test.csv`), that the file format is `cvs` and that the records are separated by a `,`; CSV files *must* provide a header row that is used to name the columns; the same column names are used in the following comumn specification section;
-2. secondly, the configuration specifies the main table to be imported; each table has a `name` and can provide a `filter`, which is an expression that is applied to each row and shoudl return either `true` (in which case the row is sent to CloudQuery) or `false` (the row is dropped); the expression is bases on [this rule engine grammar](https://github.com/antonmedv/expr); the current row is addressed via the `_` identifier;
-3. the table's colums are enumerated; each column has a `name`, a `type`, and can additionally specify whether it is part of the primary key, whether it has unique values and is non nullable; moreover, there is a `transform` property that provides a way to transform (or set to a constant value) the extracted value, both for data cleansing or for conditional extraction, according to Golang templates syntax;
-4. last, a table can have dependent tables (`relations`), which are weak entities that are related to the main entity; relations are useful when a single line in a CSV, XLSX, YAML or JSON file actually embeds multiple entities, e.g. a host and its NICs.
+1. first of all it specifies the path to the file that provides the information to be imported into CloudQuery (`./test.csv`), that the file format is `csv` (other supported values are `jsonm`, `yaml` and `xlsx`) and that the records are separated by a `,` (only required for `csv`); CSV and XLSX files *must* provide a header row that is used to name the columns, whereas JSON and YAML files must be arrays of objects (i.e. start with `[]` or with a list element `- ...`); the column (CSV, XLSX) or object attribute (YAML; JSON) names are used in the following column specification section;
+2. secondly, the configuration specifies the main table to be imported; each table has a `name` and can provide an optional `filter`, which is an expression that is applied to each row and should return either `true` (in which case the row is sent to CloudQuery) or `false` (the row is dropped); the expression is based on [this rule engine grammar](https://github.com/antonmedv/expr); the current row is addressed via the `_` identifier and the fields are accessed as properties (`_.color`);
+3. the table's colums are enumerated and decribed; each column has a `name`, a `type`, and can additionally specify whether it is part of the primary key (`key: true`), whether it has unique values (`unique: true`) and is non nullable (`notnull: true`); moreover, there is a `transform` property that provides a way to transform (or set to a constant value) the extracted value, both for data cleansing or for conditional extraction, according to Golang templates syntax; The templating engine has the whole of [Sprig](http://masterminds.github.io/sprig/) functions available;
+4. last, a table can have dependent tables (`relations`), which are weak entities that are related to the main one; relations are useful when a single line in a CSV, XLSX, YAML or JSON file actually embeds multiple entities, e.g. a host (`hostname`, `serial`, `ram`, `cpus` ...) and its (possibly multiple) dependent NICs (`mac_address`, `ip_address`, `port_type` ...).
  
-You can declare the main table (e.g. table `hosts`) and the dependent entities (e.g. a table for the host NICs, `host_nics') separately and then extract the different entities -- host and nics, even in 1:N cardinality -- automatically.
+You can declare the main table (e.g. table `hosts`) and the dependent entities (e.g. a table for the host NICs, `host_nics') separately and then instruct the plugin to extract the different entities -- host and nics, even in 1:N cardinality -- automatically.
 
-Refer to the pprovided tests to see how it works.
+Refer to the provided tests to see how this mechanism works.
 
 ## Development backlog
 
 The source plugin is pretty feature complete.
 
-It may interesting to add support for remote data retrieval prior to importing, e.g. by supporting HTTP, FTP, S3 and git URLs in addition to local files in the `file` field, so that the plugin downloads accesses the provided URL for downloading the file before loading it into CloudQuery.
+It may be useful to add support for URLs in the `file` field (which would probably be deprecated in favour of a more generic `source` property) in order to have the plugin retrieve the file at the given URL prior to importing; support should be extended to at least HTTP(s), FTP, S3 and git URLs in addition to local files `file://`.
+
+The implementation could leverage [Hashicorp's go-getter library](https://github.com/hashicorp/go-getter).
 
 ### Run tests
 
