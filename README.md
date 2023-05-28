@@ -95,7 +95,7 @@ The following `spec` provides plugin-specific configuration:
 3. the table's colums are enumerated and decribed; each column has a `name`, a `type`, and can additionally specify whether it is part of the primary key (`key: true`), whether it has unique values (`unique: true`) and is non nullable (`notnull: true`); moreover, there is a `transform` property that provides a way to transform (or set to a constant value) the extracted value, both for data cleansing or for conditional extraction, according to Golang templates syntax; The templating engine has the whole of [Sprig](http://masterminds.github.io/sprig/) functions available;
 4. last, a table can have dependent tables (`relations`), which are weak entities that are related to the main one; relations are useful when a single line in a CSV, XLSX, YAML or JSON file actually embeds multiple entities, e.g. a host (`hostname`, `serial`, `ram`, `cpus` ...) and its (possibly multiple) dependent NICs (`mac_address`, `ip_address`, `port_type` ...).
  
-You can declare the main table (e.g. table `hosts`) and the dependent entities (e.g. a table for the host NICs, `host_nics') separately and then instruct the plugin to extract the different entities -- host and nics, even in 1:N cardinality -- automatically.
+You can declare the main table (e.g. table `hosts`) and the dependent entities (e.g. a table for the host NICs, `host_nics`) separately and then instruct the plugin to extract the different entities -- host and nics, even in 1:N cardinality -- automatically.
 
 Refer to the provided tests to see how this mechanism works.
 
