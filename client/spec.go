@@ -3,7 +3,7 @@ package client
 import (
 	"text/template"
 
-	"github.com/antonmedv/expr/vm"
+	"github.com/expr-lang/expr/vm"
 )
 
 type Column struct {
@@ -24,6 +24,7 @@ type Table struct {
 	Evaluator   *vm.Program `json:"-,omitempty" yaml:"-,omitempty"`
 	Columns     []*Column   `json:"columns,omitempty" yaml:"columns,omitempty"`
 }
+
 type Spec struct {
 	File      string   `json:"file,omitempty" yaml:"file,omitempty"`
 	Format    string   `json:"format,omitempty" yaml:"format,omitempty"`
@@ -31,4 +32,12 @@ type Spec struct {
 	Sheets    []string `json:"sheets,omitempty" yaml:"sheets,omitempty"`       // XLSX only
 	Table     Table    `json:"table,omitempty" yaml:"table,omitempty"`
 	Relations []Table  `json:"relations,omitempty" yaml:"relations,omitempty"`
+}
+
+func (s *Spec) Validate() error {
+	// TODO: implement
+	return nil
+}
+
+func (s *Spec) SetDefaults() {
 }

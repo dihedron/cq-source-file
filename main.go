@@ -1,11 +1,16 @@
 package main
 
 import (
-	"github.com/cloudquery/plugin-sdk/serve"
-	"github.com/dihedron/cq-source-file/plugin"
+	"context"
+	"log"
+
+	"github.com/dihedron/cq-source-file/resources/plugin"
+
+	"github.com/cloudquery/plugin-sdk/v4/serve"
 )
 
 func main() {
-	p := plugin.Plugin()
-	serve.Source(p)
+	if err := serve.Plugin(plugin.Plugin()).Serve(context.Background()); err != nil {
+		log.Fatalf("failed to serve plugin: %v", err)
+	}
 }

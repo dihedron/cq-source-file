@@ -10,11 +10,12 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/antonmedv/expr"
-	"github.com/cloudquery/plugin-sdk/schema"
+	"github.com/apache/arrow/go/v15/arrow"
+	"github.com/cloudquery/plugin-sdk/v4/schema"
 	"github.com/dihedron/cq-plugin-utils/format"
 	"github.com/dihedron/cq-plugin-utils/pointer"
 	"github.com/dihedron/cq-source-file/client"
+	"github.com/expr-lang/expr"
 	"github.com/xuri/excelize/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -30,38 +31,38 @@ func fetchTableData(table *client.Table) func(ctx context.Context, meta schema.C
 		client := meta.(*client.Client)
 
 		rows := []map[string]any{}
-		client.Logger.Debug().Str("table", table.Name).Msg("fetching data...")
+		client.Logger().Debug().Str("table", table.Name).Msg("fetching data...")
 
 		switch strings.ToLower(client.Specs.Format) {
 		case "json":
 			data, err := os.ReadFile(client.Specs.File)
 			if err != nil {
-				client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+				client.Logger().Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
 				return fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
 			}
-			client.Logger.Debug().Str("file", client.Specs.File).Msg("input file read")
+			client.Logger().Debug().Str("file", client.Specs.File).Msg("input file read")
 			if err := json.Unmarshal(data, &rows); err != nil {
-				client.Logger.Error().Err(err).Msg("error unmarshalling data from JSON")
+				client.Logger().Error().Err(err).Msg("error unmarshalling data from JSON")
 				return fmt.Errorf("error unmarshalling data from JSON: %w", err)
 			}
 		case "yaml", "yml":
 			data, err := os.ReadFile(client.Specs.File)
 			if err != nil {
-				client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+				client.Logger().Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
 				return fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
 			}
-			client.Logger.Debug().Str("file", client.Specs.File).Msg("input file read")
+			client.Logger().Debug().Str("file", client.Specs.File).Msg("input file read")
 			if err := yaml.Unmarshal(data, &rows); err != nil {
-				client.Logger.Error().Err(err).Msg("error unmarshalling data from YAML")
+				client.Logger().Error().Err(err).Msg("error unmarshalling data from YAML")
 				return fmt.Errorf("error unmarshalling data from YAML: %w", err)
 			}
 		case "csv":
 			data, err := os.ReadFile(client.Specs.File)
 			if err != nil {
-				client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+				client.Logger().Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
 				return fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
 			}
-			client.Logger.Debug().Str("file", client.Specs.File).Msg("input file read")
+			client.Logger().Debug().Str("file", client.Specs.File).Msg("input file read")
 			if client.Specs.Separator == nil {
 				client.Specs.Separator = pointer.To(",")
 			}
@@ -70,7 +71,7 @@ func fetchTableData(table *client.Table) func(ctx context.Context, meta schema.C
 			var keys []string
 			for scanner.Scan() {
 				line := scanner.Text()
-				client.Logger.Debug().Str("line", line).Msg("read line from input file")
+				client.Logger().Debug().Str("line", line).Msg("read line from input file")
 				if first {
 					first = false
 					keys = strings.Split(line, *client.Specs.Separator)
@@ -88,19 +89,19 @@ func fetchTableData(table *client.Table) func(ctx context.Context, meta schema.C
 						}
 						rows = append(rows, row)
 					} else {
-						client.Logger.Warn().Str("file", client.Specs.File).Str("line", line).Int("expected", len(keys)).Int("actual", len(values)).Msg("invalid number of columns")
+						client.Logger().Warn().Str("file", client.Specs.File).Str("line", line).Int("expected", len(keys)).Int("actual", len(values)).Msg("invalid number of columns")
 					}
 				}
 			}
 		case "xsl", "xlsx", "excel":
 			xls, err := excelize.OpenFile(client.Specs.File)
 			if err != nil {
-				client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+				client.Logger().Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
 				return fmt.Errorf("error reading input file %q: %w", client.Specs.File, err)
 			}
 			defer func() {
 				if err := xls.Close(); err != nil {
-					client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
+					client.Logger().Error().Err(err).Str("file", client.Specs.File).Msg("error reading input file")
 				}
 			}()
 			// get all the rows in the requested (or the active) sheet
@@ -109,10 +110,10 @@ func fetchTableData(table *client.Table) func(ctx context.Context, meta schema.C
 				client.Specs.Sheets = []string{xls.GetSheetName(xls.GetActiveSheetIndex())}
 			}
 			for _, sheet := range client.Specs.Sheets {
-				client.Logger.Debug().Str("sheet", sheet).Msg("getting data from sheet")
+				client.Logger().Debug().Str("sheet", sheet).Msg("getting data from sheet")
 				xlsrows, err := xls.GetRows(sheet)
 				if err != nil {
-					client.Logger.Error().Err(err).Str("file", client.Specs.File).Msg("error getting rows")
+					client.Logger().Error().Err(err).Str("file", client.Specs.File).Msg("error getting rows")
 					return fmt.Errorf("error getting rows from input file %q: %w", client.Specs.File, err)
 				}
 
@@ -139,7 +140,7 @@ func fetchTableData(table *client.Table) func(ctx context.Context, meta schema.C
 				}
 			}
 		default:
-			client.Logger.Error().Str("format", client.Specs.Format).Msg("unsupported format")
+			client.Logger().Error().Str("format", client.Specs.Format).Msg("unsupported format")
 			return fmt.Errorf("unsupported format: %q", client.Specs.Format)
 		}
 
@@ -152,18 +153,18 @@ func fetchTableData(table *client.Table) func(ctx context.Context, meta schema.C
 				}
 
 				if output, err := expr.Run(client.Specs.Table.Evaluator, env); err != nil {
-					client.Logger.Error().Err(err).Msg("error running evaluator")
+					client.Logger().Error().Err(err).Msg("error running evaluator")
 				} else {
-					client.Logger.Debug().Any("output", output).Msg("received output")
+					client.Logger().Debug().Any("output", output).Msg("received output")
 					accepted = output.(bool)
 				}
 			}
 
 			if accepted {
-				client.Logger.Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("accepting row")
+				client.Logger().Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("accepting row")
 				res <- row
 			} else {
-				client.Logger.Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("rejecting row")
+				client.Logger().Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("rejecting row")
 			}
 		}
 
@@ -180,7 +181,7 @@ func fetchRelationData(table *client.Table) func(ctx context.Context, meta schem
 		// columns that go into the child relation
 		row := parent.Item.(map[string]any)
 
-		client.Logger.Debug().Str("table", table.Name).Str("row", format.ToJSON(row)).Msg("fetching data from parent...")
+		client.Logger().Debug().Str("table", table.Name).Str("row", format.ToJSON(row)).Msg("fetching data from parent...")
 
 		accepted := true
 		if table.Evaluator != nil {
@@ -203,22 +204,22 @@ func fetchRelationData(table *client.Table) func(ctx context.Context, meta schem
 			}
 
 			if output, err := expr.Run(table.Evaluator, env); err != nil {
-				client.Logger.Error().Err(err).Msg("error running evaluator")
+				client.Logger().Error().Err(err).Msg("error running evaluator")
 			} else {
-				client.Logger.Debug().Any("output", output).Msg("received output")
+				client.Logger().Debug().Any("output", output).Msg("received output")
 				accepted = output.(bool)
 			}
 		}
 
 		if accepted {
 			if table.Filter != nil && table.Evaluator != nil {
-				client.Logger.Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("accepting row")
+				client.Logger().Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("accepting row")
 			} else {
-				client.Logger.Debug().Str("row", format.ToJSON(row)).Msg("passing on row")
+				client.Logger().Debug().Str("row", format.ToJSON(row)).Msg("passing on row")
 			}
 			res <- row
 		} else {
-			client.Logger.Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("rejecting row")
+			client.Logger().Debug().Str("filter", *table.Filter).Str("row", format.ToJSON(row)).Msg("rejecting row")
 		}
 
 		return nil
@@ -231,21 +232,21 @@ func fetchColumn(table *client.Table) func(ctx context.Context, meta schema.Clie
 
 	return func(ctx context.Context, meta schema.ClientMeta, resource *schema.Resource, c schema.Column) error {
 		client := meta.(*client.Client)
-		client.Logger.Debug().Str("table", table.Name).Msg("retrieving column for table")
-		// client.Logger.Debug().Str("resource", format.ToJSON(resource)).Str("column", format.ToJSON(c)).Str("item type", fmt.Sprintf("%T", resource.Item)).Msg("fetching column...")
+		client.Logger().Debug().Str("table", table.Name).Msg("retrieving column for table")
+		// client.Logger().Debug().Str("resource", format.ToJSON(resource)).Str("column", format.ToJSON(c)).Str("item type", fmt.Sprintf("%T", resource.Item)).Msg("fetching column...")
 		row := resource.Item.(map[string]any)
 		value := row[c.Name]
-		client.Logger.Debug().Str("value", fmt.Sprintf("%v", value)).Str("type", fmt.Sprintf("%T", value)).Msg("checking value type")
+		client.Logger().Debug().Str("value", fmt.Sprintf("%v", value)).Str("type", fmt.Sprintf("%T", value)).Msg("checking value type")
 
 		// now apply the transform if it is available
 		for _, spec := range table.Columns {
 			if spec.Name == c.Name && spec.Template != nil {
-				client.Logger.Debug().Msg("applying transform...")
+				client.Logger().Debug().Msg("applying transform...")
 				var buffer bytes.Buffer
 				target := struct {
 					Name  string
 					Value any
-					Type  schema.ValueType
+					Type  arrow.DataType
 					Row   map[string]any
 				}{
 					Name:  c.Name,
@@ -254,7 +255,7 @@ func fetchColumn(table *client.Table) func(ctx context.Context, meta schema.Clie
 					Row:   row,
 				}
 				if err := spec.Template.Execute(&buffer, target); err != nil {
-					client.Logger.Error().Err(err).Any("value", value).Str("transform", *spec.Transform).Any("row", row).Msg("error applying transform")
+					client.Logger().Error().Err(err).Any("value", value).Str("transform", *spec.Transform).Any("row", row).Msg("error applying transform")
 					return err
 				}
 				value = buffer.String()
@@ -262,30 +263,31 @@ func fetchColumn(table *client.Table) func(ctx context.Context, meta schema.Clie
 			}
 		}
 
-		client.Logger.Debug().Any("value", value).Msg("after transform...")
+		client.Logger().Debug().Any("value", value).Msg("after transform...")
 
 		if value == nil {
-			client.Logger.Warn().Msg("value is nil")
-			if c.CreationOptions.NotNull {
+			client.Logger().Warn().Msg("value is nil")
+
+			if c.NotNull {
 				err := fmt.Errorf("invalid nil value for non-nullable column %s", c.Name)
-				client.Logger.Error().Err(err).Str("name", c.Name).Msg("error setting column")
+				client.Logger().Error().Err(err).Str("name", c.Name).Msg("error setting column")
 				return err
 			}
 		} else {
-			client.Logger.Warn().Msg("value is NOT nil")
+			client.Logger().Warn().Msg("value is NOT nil")
 			if reflect.ValueOf(value).IsZero() {
-				if !c.CreationOptions.NotNull {
+				if !c.NotNull {
 					// column is nullable, let's null it
-					client.Logger.Warn().Str("name", c.Name).Msg("nulling column value")
+					client.Logger().Warn().Str("name", c.Name).Msg("nulling column value")
 					value = nil
 				} else {
-					client.Logger.Warn().Msg("set default value for type")
+					client.Logger().Warn().Msg("set default value for type")
 					switch c.Type {
-					case schema.TypeBool:
+					case arrow.FixedWidthTypes.Boolean:
 						value = false
-					case schema.TypeInt:
+					case arrow.PrimitiveTypes.Int64:
 						value = 0
-					case schema.TypeString:
+					case arrow.BinaryTypes.String:
 						value = ""
 					}
 				}

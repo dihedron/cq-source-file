@@ -1,17 +1,17 @@
 package resources
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig"
-	"github.com/antonmedv/expr"
-	"github.com/cloudquery/plugin-sdk/schema"
+	"github.com/apache/arrow/go/v15/arrow"
+	"github.com/cloudquery/plugin-sdk/v4/schema"
 	"github.com/dihedron/cq-plugin-utils/format"
 	"github.com/dihedron/cq-plugin-utils/pointer"
 	"github.com/dihedron/cq-source-file/client"
+	"github.com/expr-lang/expr"
 	"github.com/rs/zerolog"
 )
 
@@ -21,31 +21,28 @@ type Env struct {
 
 // GetTable uses data in the spec section of the client configuration to
 // dynamically build the information about the columns being imported.
-func GetDynamicTables(ctx context.Context, meta schema.ClientMeta) (schema.Tables, error) {
-	client := meta.(*client.Client)
+func GetDynamicTables(logger zerolog.Logger, spec *client.Spec) schema.Tables {
 
 	// get the table columns and populate the admission filter
 	// for the main table
-	tableColumns, err := buildTableColumnsSchema(client.Logger, &client.Specs.Table)
+	tableColumns, err := buildTableColumnsSchema(logger, &spec.Table)
 	if err != nil {
-		client.Logger.Error().Err(err).Str("table", client.Specs.Table.Name).Msg("error getting table column schema")
-		return nil, err
+		logger.Error().Err(err).Str("table", spec.Table.Name).Msg("error getting table column schema")
+		return nil
 	}
 
 	// now loop over and add relations
 	relations := []*schema.Table{}
-	client.Logger.Debug().Str("table", client.Specs.Table.Name).Msg("adding relations...")
-	for _, relation := range client.Specs.Relations {
+	logger.Debug().Str("table", spec.Table.Name).Msg("adding relations...")
+	for _, relation := range spec.Relations {
 
-		relation := relation
-
-		relationColumns, err := buildTableColumnsSchema(client.Logger, &relation)
+		relationColumns, err := buildTableColumnsSchema(logger, &relation)
 		if err != nil {
-			client.Logger.Error().Err(err).Str("table", relation.Name).Msg("error getting relation column schema")
-			return nil, err
+			logger.Error().Err(err).Str("table", relation.Name).Msg("error getting relation column schema")
+			return nil
 		}
 
-		client.Logger.Debug().Str("relation", relation.Name).Msg("adding relation to schema")
+		logger.Debug().Str("relation", relation.Name).Msg("adding relation to schema")
 
 		if relation.Description == nil {
 			relation.Description = pointer.To(fmt.Sprintf("Table %q", relation.Name))
@@ -59,22 +56,21 @@ func GetDynamicTables(ctx context.Context, meta schema.ClientMeta) (schema.Table
 		})
 	}
 
-	// now assemble the main table with its relations
-	client.Logger.Debug().Msg("returning table schema")
-
-	if client.Specs.Table.Description == nil {
-		client.Specs.Table.Description = pointer.To(fmt.Sprintf("Table %q", client.Specs.Table.Name))
+	// now put the main table with its relations together
+	logger.Debug().Msg("returning table schema")
+	if spec.Table.Description == nil {
+		spec.Table.Description = pointer.To(fmt.Sprintf("Table %q", spec.Table.Name))
 	}
 
 	return []*schema.Table{
 		{
-			Name:        client.Specs.Table.Name,
-			Description: *client.Specs.Table.Description,
-			Resolver:    fetchTableData(&client.Specs.Table),
+			Name:        spec.Table.Name,
+			Description: *spec.Table.Description,
+			Resolver:    fetchTableData(&spec.Table),
 			Columns:     tableColumns,
 			Relations:   relations,
 		},
-	}, nil
+	}
 }
 
 // buildTableColumnsSchema returns the schema definition of the given table's columns
@@ -114,28 +110,26 @@ func buildTableColumnsSchema(logger zerolog.Logger, table *client.Table) ([]sche
 			Name:        c.Name,
 			Description: *c.Description,
 			Resolver:    fetchColumn(table),
-			CreationOptions: schema.ColumnCreationOptions{
-				PrimaryKey: c.Key,
-				Unique:     c.Unique,
-				NotNull:    c.NotNull,
-			},
+			PrimaryKey:  c.Key,
+			Unique:      c.Unique,
+			NotNull:     c.NotNull,
 		}
 		switch strings.ToLower(c.Type) {
 		case "string", "str", "s":
 			logger.Debug().Str("table", table.Name).Str("name", c.Name).Msg("column is of type string")
-			column.Type = schema.TypeString
+			column.Type = arrow.BinaryTypes.String
 			row[c.Name] = ""
 		case "integer", "int", "i":
 			logger.Debug().Str("table", table.Name).Str("name", c.Name).Msg("column is of type int")
-			column.Type = schema.TypeInt
+			column.Type = arrow.PrimitiveTypes.Int64
 			row[c.Name] = 0
 		case "boolean", "bool", "b":
 			logger.Debug().Str("table", table.Name).Str("name", c.Name).Msg("column is of type bool")
-			column.Type = schema.TypeBool
+			column.Type = arrow.FixedWidthTypes.Boolean
 			row[c.Name] = false
 		default:
 			logger.Debug().Str("table", table.Name).Str("name", c.Name).Msg("column is of unmapped type, assuming string")
-			column.Type = schema.TypeString
+			column.Type = arrow.BinaryTypes.String
 			row[c.Name] = ""
 		}
 		columns = append(columns, column)
