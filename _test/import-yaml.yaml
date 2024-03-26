@@ -5,14 +5,13 @@ spec:
   registry: local
   path: /data/workspaces/gomods/cq-source-file/dist/cq-source-file_linux_amd64_v1/cq-source-file
   version: v1.0.0
-  tables: 
-    ["*"]
+  tables: ["*"]
   destinations:
     - sqlite
   spec:
     file: ./test.yaml
     format: yaml
-    table: 
+    table:
       name: T1
       filter: _.color startsWith 'b'
       columns:
@@ -40,10 +39,10 @@ spec:
             key: true
             unique: true
             notnull: true
-            transform: "{{index .Row \"color\" | toString | upper}}"
+            transform: '{{index .Row "color" | toString | upper}}'
           - name: upper_value
             type: string
-            transform: "{{index .Row \"value\" | toString | upper}}"
+            transform: '{{index .Row "value" | toString | upper}}'
       - name: T1_UPPER
         filter: _.color startsWith 'bla'
         columns:
@@ -52,10 +51,10 @@ spec:
             key: true
             unique: true
             notnull: true
-            transform: "{{index .Row \"color\" | toString | upper}}"
+            transform: '{{index .Row "color" | toString | upper}}'
           - name: upper_value
             type: string
-            transform: "{{index .Row \"value\" | toString | upper}}"
+            transform: '{{index .Row "value" | toString | upper}}'
 ---
 kind: source
 spec:
@@ -63,15 +62,14 @@ spec:
   registry: local
   path: /data/workspaces/gomods/cq-source-file/dist/cq-source-file_linux_amd64_v1/cq-source-file
   version: v1.0.0
-  tables: 
-    ["*"]
+  tables: ["*"]
   destinations:
     - sqlite
   spec:
     file: ./test.yaml
     format: yaml
-    table: 
-      name: T2    
+    table:
+      name: T2
       filter: _.color not startsWith 'b'
       columns:
         - name: color
@@ -94,6 +92,6 @@ kind: destination
 spec:
   name: sqlite
   path: cloudquery/sqlite
-  version: v2.0.5
+  version: v2.7.5
   spec:
     connection_string: ./import.sqlite
