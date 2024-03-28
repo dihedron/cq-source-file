@@ -79,7 +79,7 @@ func GetDynamicTables(logger zerolog.Logger, spec *client.Spec) schema.Tables {
 func buildTableColumnsSchema(logger zerolog.Logger, table *client.Table) ([]schema.Column, error) {
 	row := map[string]any{}
 
-	// start by looping over the columns definitions and crewating the Column schema
+	// start by looping over the columns definitions and creating the Column schema
 	// object; while looping over the columns, we are also creating a map holding
 	// the column names and an example (zero) value for each column, which we'll use
 	// when initialising the admission filter, which expects to work on a given data
@@ -87,7 +87,6 @@ func buildTableColumnsSchema(logger zerolog.Logger, table *client.Table) ([]sche
 	columns := []schema.Column{}
 
 	for _, c := range table.Columns {
-		c := c
 		logger.Debug().Str("table", table.Name).Str("name", c.Name).Msg("adding column")
 
 		// prepare the template for value transformation if there is a transform

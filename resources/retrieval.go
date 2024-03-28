@@ -146,13 +146,13 @@ func fetchTableData(table *client.Table) func(ctx context.Context, meta schema.C
 
 		for _, row := range rows {
 			accepted := true
-			if client.Specs.Table.Evaluator != nil {
+			if table.Evaluator != nil {
 				accepted = false
 				env := map[string]any{
 					"_": row,
 				}
 
-				if output, err := expr.Run(client.Specs.Table.Evaluator, env); err != nil {
+				if output, err := expr.Run(table.Evaluator, env); err != nil {
 					client.Logger().Error().Err(err).Msg("error running evaluator")
 				} else {
 					client.Logger().Debug().Any("output", output).Msg("received output")
